@@ -1,5 +1,5 @@
 <h1 align="center" style="border-bottom: none; display: flex;">
-    <div style="align-self: center;"><a href="//prometheus.io" target="_blank"><img alt="Prometheus" src="/prometheus-logo.png"></a>Prometheus</div>
+    <div style="align-self: center;"><a href="//prometheus.io" target="_blank"><img alt="Prometheus" src="/prometheus-logo.png"></a></div>
     <div><a href="https://grafana.com/" target="_blank"><img alt="Grafana" src="/grafana-logo.png"></a></div>
 </h1>
 
