@@ -1,5 +1,6 @@
-<h1 align="center" style="border-bottom: none">
-    <a href="//prometheus.io" target="_blank"><img alt="Prometheus" src="/prometheus-logo.svg"></a><br>Prometheus
+<h1 align="center" style="border-bottom: none; display: flex;">
+    <div><a href="//prometheus.io" target="_blank"><img alt="Prometheus" src="/prometheus-logo.svg"></a><br>Prometheus</div>
+    <div><a href="https://grafana.com/" target="_blank"><img alt="Grafana" src="/grafana-logo.png"></a><br>Grafana</div>
 </h1>
 
 <p align="center">Visit <a href="//prometheus.io" target="_blank">prometheus.io</a> for the full documentation,
