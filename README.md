@@ -37,155 +37,204 @@ The features that distinguish Prometheus from other metrics and monitoring syste
 
 ![Architecture overview](/architecture.svg)
 
-## Install
-
-There are various ways of installing Prometheus.
-
-### Precompiled binaries
-
-Precompiled binaries for released versions are available in the
-[*download* section](https://prometheus.io/download/)
-on [prometheus.io](https://prometheus.io). Using the latest production release binary
-is the recommended way of installing Prometheus.
-See the [Installing](https://prometheus.io/docs/introduction/install/)
-chapter in the documentation for all the details.
-
-### Docker images
-
-Docker images are available on [Quay.io](https://quay.io/repository/prometheus/prometheus) or [Docker Hub](https://hub.docker.com/r/prom/prometheus/).
-
-You can launch a Prometheus container for trying it out with
+## Install Prometheus
 
 ```bash
-docker run --name prometheus -d -p 127.0.0.1:9090:9090 prom/prometheus
+wget https://github.com/prometheus/prometheus/releases/download/v2.50.0-rc.0/prometheus-2.50.0-rc.0.linux-amd64.tar.gz
+```
+```bash
+tar xvf prometheus-2.50.0-rc.0.linux-amd64.tar.gz
+```
+```bash
+sudo groupadd --system prometheus
+```
+```bash
+sudo useradd --system -s /sbin/nologin -g prometheus prometheus
+```
+```bash
+sudo mv prometheus promtool /usr/local/bin/
+```
+```bash
+sudo mkdir /etc/prometheus
+```
+```bash
+sudo mkdir /var/lib/prometheus
+```
+```bash
+sudo chown -R prometheus:prometheus /var/lib/prometheus
+```
+```bash
+sudo mv consoles/ console_libraries/ prometheus.yml /etc/prometheus/
+```
+```bash
+cd /etc/prometheus/
+```
+```bash
+sudo nano prometheus.yml
+```
+```bash
+sudo nano /etc/systemd/system/prometheus.service
+```
+```bash
+[Unit]
+Description=Prometheus
+Documentation=https://prometheus.io/docs/introduction/overview/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus \
+--config.file /etc/prometheus/prometheus.yml \
+--storage.tsdb.path /var/lib/prometheus/ \
+--web.console.templates=/etc/prometheus/consoles \
+--web.console.libraries=/etc/prometheus/console_libraries
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+```
+```bash
+sudo systemctl status prometheus
+```
+```bash
+sudo systemctl enable --now prometheus
+```
+```bash
+sudo systemctl status prometheus.service
+```
+```bash
+sudo lsof -n -i | grep prometheus
+```
+```bash
+hostname -I
+```
+```bash
+http://172.18.231.121:9090/targets?search=
 ```
 
-Prometheus will now be reachable at <http://localhost:9090/>.
-
-### Building from source
-
-To build Prometheus from source code, You need:
-
-* Go [version 1.17 or greater](https://golang.org/doc/install).
-* NodeJS [version 16 or greater](https://nodejs.org/).
-* npm [version 7 or greater](https://www.npmjs.com/).
-
-Start by cloning the repository:
+## Install Node Exporter
 
 ```bash
-git clone https://github.com/prometheus/prometheus.git
-cd prometheus
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+```
+```bash
+tar xvf node_exporter-1.7.0.linux-amd64.tar.gz
+```
+```bash
+cd node_exporter-1.7.0.linux-amd64/
+```
+```bash
+sudo mv node_exporter /usr/local/bin/
+```
+```bash
+node_exporter --version
+```
+```bash
+sudo nano /etc/systemd/system/node-exporter.service
+```
+```bash
+[Unit]
+Description=Prometheus exporter for machine metrics
+
+[Service]
+Restart=always
+User=prometheus
+ExecStart=/usr/local/bin/node_exporter
+ExecReload=/bin/kill -HUP $MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+```
+```bash
+sudo systemctl status node-exporter.service
+```
+```bash
+sudo systemctl enable --now node-exporter.service
+```
+```bash
+sudo systemctl status node-exporter.service
+```
+```bash
+sudo lsof -n -i | grep node
+```
+```bash
+hostname -I
+```
+```bash
+http://172.18.231.121:9100/metrics
+```
+```bash
+sudo nano /etc/prometheus/prometheus.yml
+```
+```bash
+# lakukan perubahan di prometheus.yml
+ - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["localhost:9100"]
+```
+```bash
+sudo systemctl restart prometheus
+```
+```bash
+sudo systemctl status prometheus
 ```
 
-You can use the `go` tool to build and install the `prometheus`
-and `promtool` binaries into your `GOPATH`:
+## Install Node Exporter
 
 ```bash
-GO111MODULE=on go install github.com/prometheus/prometheus/cmd/...
-prometheus --config.file=your_config.yml
+sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
 ```
-
-*However*, when using `go install` to build Prometheus, Prometheus will expect to be able to
-read its web assets from local filesystem directories under `web/ui/static` and
-`web/ui/templates`. In order for these assets to be found, you will have to run Prometheus
-from the root of the cloned repository. Note also that these directories do not include the
-React UI unless it has been built explicitly using `make assets` or `make build`.
-
-An example of the above configuration file can be found [here.](https://github.com/prometheus/prometheus/blob/main/documentation/examples/prometheus.yml)
-
-You can also build using `make build`, which will compile in the web assets so that
-Prometheus can be run from anywhere:
-
 ```bash
-make build
-./prometheus --config.file=your_config.yml
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
 ```
-
-The Makefile provides several targets:
-
-* *build*: build the `prometheus` and `promtool` binaries (includes building and compiling in web assets)
-* *test*: run the tests
-* *test-short*: run the short tests
-* *format*: format the source code
-* *vet*: check the source code for common errors
-* *assets*: build the React UI
-
-### Service discovery plugins
-
-Prometheus is bundled with many service discovery plugins.
-When building Prometheus from source, you can edit the [plugins.yml](./plugins.yml)
-file to disable some service discoveries. The file is a yaml-formated list of go
-import path that will be built into the Prometheus binary.
-
-After you have changed the file, you
-need to run `make build` again.
-
-If you are using another method to compile Prometheus, `make plugins` will
-generate the plugins file accordingly.
-
-If you add out-of-tree plugins, which we do not endorse at the moment,
-additional steps might be needed to adjust the `go.mod` and `go.sum` files. As
-always, be extra careful when loading third party code.
-
-### Building the Docker image
-
-The `make docker` target is designed for use in our CI system.
-You can build a docker image locally with the following commands:
-
 ```bash
-make promu
-promu crossbuild -p linux/amd64
-make npm_licenses
-make common-docker-amd64
+sudo apt update
 ```
-
-## Using Prometheus as a Go Library
-
-### Remote Write
-
-We are publishing our Remote Write protobuf independently at
-[buf.build](https://buf.build/prometheus/prometheus/assets).
-
-You can use that as a library:
-
-```shell
-go get buf.build/gen/go/prometheus/prometheus/protocolbuffers/go@latest
+```bash
+sudo apt install grafana
 ```
-
-This is experimental.
-
-### Prometheus code base
-
-In order to comply with [go mod](https://go.dev/ref/mod#versions) rules,
-Prometheus release number do not exactly match Go module releases. For the
-Prometheus v2.y.z releases, we are publishing equivalent v0.y.z tags.
-
-Therefore, a user that would want to use Prometheus v2.35.0 as a library could do:
-
-```shell
-go get github.com/prometheus/prometheus@v0.35.0
+```bash
+sudo systemctl status grafana-server.service
 ```
-
-This solution makes it clear that we might break our internal Go APIs between
-minor user-facing releases, as [breaking changes are allowed in major version
-zero](https://semver.org/#spec-item-4).
-
-## React UI Development
-
-For more information on building, running, and developing on the React-based UI, see the React app's [README.md](web/ui/README.md).
-
-## More information
-
-* Godoc documentation is available via [pkg.go.dev](https://pkg.go.dev/github.com/prometheus/prometheus). Due to peculiarities of Go Modules, v2.x.y will be displayed as v0.x.y.
-* See the [Community page](https://prometheus.io/community) for how to reach the Prometheus developers and users on various communication channels.
-
-## Contributing
-
-Refer to [CONTRIBUTING.md](https://github.com/prometheus/prometheus/blob/main/CONTRIBUTING.md)
-
-## License
-
-Apache License 2.0, see [LICENSE](https://github.com/prometheus/prometheus/blob/main/LICENSE).
-
-[hub]: https://hub.docker.com/r/prom/prometheus/
-[quay]: https://quay.io/repository/prometheus/prometheus
+```bash
+sudo systemctl enable --now grafana-server.service
+```
+```bash
+sudo systemctl status grafana-server.service
+```
+```bash
+sudo lsof -n -P -i | grep grafana
+```
+```bash
+hostname -I
+```
+```bash
+http://172.18.231.121:3000/login
+```
+```bash
+username : admin
+password : admin
+```
+```bash
+masukkan connection : http://localhost:9090
+add dashboard
+```
+```bash
+untuk memunculkan dashboard secara full 
+follow ini https://grafana.com/grafana/dashboards/1860-node-exporter-full/
+selanjutnya copy dashboard id
+kemudian klik import
+```
